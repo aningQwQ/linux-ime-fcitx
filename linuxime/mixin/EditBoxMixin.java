@@ -25,16 +25,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class EditBoxMixin {
     @Inject(method={"keyPressed"}, at={@At(value="HEAD")}, cancellable=true)
     private void linuxime$forwardToIme(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        EditBox self = (EditBox)this;
+        EditBox self = (EditBox)(Object)this;
         if (FcitxIntegration.onKeyPressed(self, event)) {
-            cir.setReturnValue((Object)true);
+            cir.setReturnValue(true);
         }
     }
 
     @Inject(method={"charTyped"}, at={@At(value="HEAD")}, cancellable=true)
     private void linuxime$swallowRawChar(CharacterEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (FcitxIntegration.onCharTyped()) {
-            cir.setReturnValue((Object)true);
+            cir.setReturnValue(true);
         }
     }
 }

@@ -24,7 +24,7 @@ public abstract class ScreenKeyMixin {
     @Inject(method={"keyPressed"}, at={@At(value="HEAD")}, cancellable=true)
     private void linuxime$escCancelsComposition(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (FcitxIntegration.onScreenEsc(event)) {
-            cir.setReturnValue((Object)true);
+            cir.setReturnValue(true);
         }
     }
 }

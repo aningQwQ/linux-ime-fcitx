@@ -81,7 +81,7 @@ public final class DBusConnection {
         String u = DBusConnection.uid();
         StringBuilder sb = new StringBuilder();
         for (char c : u.toCharArray()) {
-            sb.append(String.format("%02x", c));
+            sb.append(String.format("%02x", (int)c));
         }
         return sb.toString();
     }
@@ -228,19 +228,17 @@ public final class DBusConnection {
      * Unable to fully structure code
      */
     private void readLoop() {
-lbl1:
-        // 2 sources
-
+        Message msg;
+        LinkedBlockingQueue<Message> q;
         try {
             while ((msg = this.readMessage()) != null) {
-                block7: {
-                    if (msg.type == 2 || msg.type == 3) {
-                        q = this.pending.get(msg.replySerial);
-                        if (q == null) continue;
-                        q.offer(msg);
-                        continue;
-                    }
-                    if (msg.type != 4) break block7;
+                if (msg.type == 2 || msg.type == 3) {
+                    q = this.pending.get(msg.replySerial);
+                    if (q == null) continue;
+                    q.offer(msg);
+                    continue;
+                }
+                if (msg.type == 4) {
                     for (Consumer<Message> l : this.signalListeners) {
                         try {
                             l.accept(msg);
@@ -249,7 +247,7 @@ lbl1:
                             ImeLog.warn("signal listener error: " + String.valueOf(t));
                         }
                     }
-                    ** GOTO lbl1
+                    continue;
                 }
                 if (msg.type != 1) continue;
                 this.handleIncomingCall(msg);

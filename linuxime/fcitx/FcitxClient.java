@@ -87,8 +87,9 @@ public final class FcitxClient {
             case "UpdateClientSideUI": {
                 String text = FcitxClient.joinSI(msg.args.isEmpty() ? null : msg.args.get(0));
                 int pc = msg.args.size() > 1 && msg.args.get(1) instanceof Integer ? ((Integer)msg.args.get(1)).intValue() : text.length();
-                List<String> cands = FcitxClient.joinSIList(msg.args.size() > 2 ? msg.args.get(2) : null);
-                List<String> labels = FcitxClient.joinSIList(msg.args.size() > 3 ? msg.args.get(3) : null);
+                Object candidateArray = msg.args.size() > 4 ? msg.args.get(4) : null;
+                List<String> labels = FcitxClient.joinSS(candidateArray, 0);
+                List<String> cands = FcitxClient.joinSS(candidateArray, 1);
                 int cur = msg.args.size() > 5 && msg.args.get(5) instanceof Integer ? (Integer)msg.args.get(5) : 0;
                 this.onUi.accept(new UiState(text, pc, cands, labels, cur));
                 break;
@@ -112,14 +113,14 @@ public final class FcitxClient {
         return sb.toString();
     }
 
-    private static List<String> joinSIList(Object aSi) {
+    private static List<String> joinSS(Object aSs, int index) {
         ArrayList<String> out = new ArrayList<String>();
-        if (!(aSi instanceof List)) {
+        if (!(aSs instanceof List)) {
             return out;
         }
-        for (Object seg : (List)aSi) {
-            if (!(seg instanceof Object[]) || ((Object[])seg).length <= 0) continue;
-            out.add(String.valueOf(((Object[])seg)[0]));
+        for (Object seg : (List)aSs) {
+            if (!(seg instanceof Object[]) || ((Object[])seg).length <= index) continue;
+            out.add(String.valueOf(((Object[])seg)[index]));
         }
         return out;
     }
@@ -152,6 +153,10 @@ public final class FcitxClient {
 
     public void setCapability(long cap) {
         this.call("SetCapability", "t", o -> o.u64(cap));
+    }
+
+    public void setSupportedCapability(long cap) {
+        this.call("SetSupportedCapability", "t", o -> o.u64(cap));
     }
 
     public void selectCandidate(int index) {
