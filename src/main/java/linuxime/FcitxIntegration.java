@@ -32,6 +32,7 @@ public final class FcitxIntegration {
     private static volatile boolean swallowChar;
     private static volatile boolean composing;
     private static volatile FcitxClient.UiState ui;
+    private static volatile String clientPreedit = "";
 
     private FcitxIntegration() {
     }
@@ -40,10 +41,12 @@ public final class FcitxIntegration {
         FCITX.setOnCommit(s -> COMMITS.add((String)s));
         FCITX.setOnPreedit((text, cursor) -> {
             composing = !text.isEmpty();
+            clientPreedit = (String)text;
             PENDING_PREEDIT.set(new PreeditUpdate((String)text, (int)cursor));
         });
         FCITX.setOnFocusOut(() -> {
             composing = false;
+            clientPreedit = "";
             PENDING_PREEDIT.set(new PreeditUpdate("", 0));
         });
         FCITX.setOnUi(u -> {
@@ -78,6 +81,7 @@ public final class FcitxIntegration {
 
     private static void clearUi() {
         composing = false;
+        clientPreedit = "";
         PENDING_PREEDIT.set(new PreeditUpdate("", 0));
         ui = null;
     }
@@ -158,7 +162,13 @@ public final class FcitxIntegration {
 
     public static void renderCandidate(GuiGraphicsExtractor g) {
         FcitxClient.UiState u = ui;
-        if (u == null) {
+        String preview = !clientPreedit.isEmpty() ? clientPreedit : u != null ? u.preedit : "";
+        List<String> candidates = u != null ? u.candidates : List.of();
+        List<String> labels = u != null ? u.labels : List.of();
+        int cursor = u != null ? u.cursor : -1;
+        String auxUp = u != null ? u.auxUp : "";
+        String auxDown = u != null ? u.auxDown : "";
+        if (preview.isEmpty() && candidates.isEmpty() && auxUp.isEmpty() && auxDown.isEmpty()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -171,23 +181,23 @@ public final class FcitxIntegration {
         List<String> texts = new ArrayList<String>();
         List<Integer> colors = new ArrayList<Integer>();
         List<Integer> candIdx = new ArrayList<Integer>();
-        if (!u.auxUp.isEmpty()) {
-            texts.add(u.auxUp);
+        if (!auxUp.isEmpty()) {
+            texts.add(auxUp);
             colors.add(auxColor);
             candIdx.add(-1);
         }
-        if (!u.preedit.isEmpty()) {
-            texts.add(u.preedit);
+        if (!preview.isEmpty()) {
+            texts.add(preview);
             colors.add(-1);
             candIdx.add(-1);
         }
-        for (int i = 0; i < u.candidates.size(); ++i) {
-            texts.add(FcitxIntegration.candLabel(i, u.labels) + " " + u.candidates.get(i));
-            colors.add(i == u.cursor ? -1 : -2236963);
+        for (int i = 0; i < candidates.size(); ++i) {
+            texts.add(FcitxIntegration.candLabel(i, labels) + " " + candidates.get(i));
+            colors.add(i == cursor ? -1 : -2236963);
             candIdx.add(i);
         }
-        if (!u.auxDown.isEmpty()) {
-            texts.add(u.auxDown);
+        if (!auxDown.isEmpty()) {
+            texts.add(auxDown);
             colors.add(auxColor);
             candIdx.add(-1);
         }
@@ -228,7 +238,7 @@ public final class FcitxIntegration {
         for (int r = 0; r < texts.size(); ++r) {
             int iy = cy + pad + r * lineH;
             int ci = candIdx.get(r);
-            if (ci >= 0 && ci == u.cursor) {
+            if (ci >= 0 && ci == cursor) {
                 g.fill(cx + 1, iy - 2, cx + w - 1, iy + lineH - 2, -2142992129);
             }
             g.text(mc.font, texts.get(r), cx + pad, iy - 1, colors.get(r));
