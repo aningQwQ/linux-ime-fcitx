@@ -41,8 +41,6 @@ public abstract class SignEditScreenMixin {
     @Shadow
     @Final
     protected SignBlockEntity sign;
-    @Shadow
-    public int width;
 
     @Shadow
     protected abstract float getSignYOffset();
@@ -84,7 +82,7 @@ public abstract class SignEditScreenMixin {
             }
 
             public int x() {
-                return SignEditScreenMixin.this.width / 2;
+                return self.width / 2;
             }
 
             public int y() {
