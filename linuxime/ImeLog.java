@@ -20,13 +20,13 @@ public final class ImeLog {
     }
 
     private static void emit(String level, String msg) {
-        System.out.println("[linux-ime] " + msg);
+        System.out.println("[linux-ime-fcitx] " + msg);
         if (HAS_SLF4J && SLF4J_LOGGER != null) {
             try {
                 if ("WARN ".equals(level)) {
-                    SLF4J_LOGGER.getClass().getMethod("warn", String.class).invoke(SLF4J_LOGGER, "[linux-ime] " + msg);
+                    SLF4J_LOGGER.getClass().getMethod("warn", String.class).invoke(SLF4J_LOGGER, "[linux-ime-fcitx] " + msg);
                 } else {
-                    SLF4J_LOGGER.getClass().getMethod("info", String.class).invoke(SLF4J_LOGGER, "[linux-ime] " + msg);
+                    SLF4J_LOGGER.getClass().getMethod("info", String.class).invoke(SLF4J_LOGGER, "[linux-ime-fcitx] " + msg);
                 }
             }
             catch (Throwable throwable) {
@@ -41,7 +41,7 @@ public final class ImeLog {
         boolean ok = false;
         try {
             Class<?> factory = Class.forName("org.slf4j.LoggerFactory");
-            lg = logger = factory.getMethod("getLogger", String.class).invoke(null, "linux-ime");
+            lg = logger = factory.getMethod("getLogger", String.class).invoke(null, "linux-ime-fcitx");
             ok = true;
         }
         catch (Throwable t) {

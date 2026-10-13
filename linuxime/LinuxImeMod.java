@@ -14,7 +14,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 public class LinuxImeMod
 implements ClientModInitializer {
-    public static final String MOD_ID = "linux-ime";
+    public static final String MOD_ID = "linux-ime-fcitx";
 
     public void onInitializeClient() {
         ImeLog.info("Linux IME (fcitx5 D-Bus) loading");
