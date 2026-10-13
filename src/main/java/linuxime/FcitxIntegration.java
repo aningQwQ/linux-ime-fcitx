@@ -19,6 +19,8 @@ import linuxime.fcitx.FcitxClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 
 public final class FcitxIntegration {
@@ -32,6 +34,7 @@ public final class FcitxIntegration {
     private static volatile boolean composing;
     private static volatile FcitxClient.UiState ui;
     private static volatile String clientPreedit = "";
+    private static volatile String lastFocusedClass = "";
 
     private FcitxIntegration() {
     }
@@ -151,6 +154,35 @@ public final class FcitxIntegration {
             ImeLog.info("key " + e.key() + " consumed by IME");
         }
         return handled;
+    }
+
+    public static boolean onGlobalKeyPressed(KeyEvent e) {
+        if (!ready) {
+            return false;
+        }
+        TextTarget target = FcitxIntegration.focusedTarget();
+        if (target == null) {
+            return false;
+        }
+        return FcitxIntegration.onKeyPressed(target, e);
+    }
+
+    private static TextTarget focusedTarget() {
+        Minecraft mc = Minecraft.getInstance();
+        Screen screen = mc.gui.screen();
+        if (screen == null) {
+            return null;
+        }
+        GuiEventListener focused = screen.getFocused();
+        if (focused instanceof EditBox) {
+            return FcitxIntegration.editBox((EditBox)focused);
+        }
+        String cls = focused == null ? "(null)" : focused.getClass().getName();
+        if (!cls.equals(lastFocusedClass)) {
+            lastFocusedClass = cls;
+            ImeLog.info("ime focused widget=" + cls + " screen=" + screen.getClass().getName());
+        }
+        return null;
     }
 
     public static boolean onCharTyped() {
