@@ -1,0 +1,36 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 25
+}
+
+java {
+    withSourcesJar()
+
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+tasks.register('deploy', Copy) {
+    dependsOn 'build'
+    from(layout.buildDirectory.file("libs/${project.name}-${project.version}.jar"))
+    into(providers.gradleProperty('modsDir')
+            .getOrElse('/mnt/ssd/MC/.minecraft/versions/26.2-Fabric/mods'))
+}
