@@ -21,7 +21,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.PreeditEvent;
 
 public final class FcitxIntegration {
     private static final FcitxClient FCITX = new FcitxClient();
@@ -81,9 +80,6 @@ public final class FcitxIntegration {
         composing = false;
         PENDING_PREEDIT.set(new PreeditUpdate("", 0));
         ui = null;
-        if (activeBox != null) {
-            activeBox.preeditUpdated(null);
-        }
     }
 
     public static boolean onKeyPressed(EditBox self, KeyEvent e) {
@@ -115,9 +111,6 @@ public final class FcitxIntegration {
 
     private static void activate(EditBox self) {
         if (self != lastFocusedBox) {
-            if (lastFocusedBox != null) {
-                lastFocusedBox.preeditUpdated(null);
-            }
             FCITX.focusIn();
             FcitxIntegration.updateCursorRect(self);
             lastFocusedBox = self;
@@ -138,13 +131,7 @@ public final class FcitxIntegration {
             changed = true;
         }
         PreeditUpdate p = PENDING_PREEDIT.getAndSet(null);
-        if (p != null && activeBox != null) {
-            if (p.text.isEmpty()) {
-                activeBox.preeditUpdated(null);
-            } else {
-                ImeLog.info("preedit: \"" + p.text + "\" cursor=" + p.cursor);
-                activeBox.preeditUpdated(new PreeditEvent(p.text, p.cursor, List.of(p.text), 0));
-            }
+        if (p != null) {
             changed = true;
         }
         if (changed) {
@@ -174,24 +161,36 @@ public final class FcitxIntegration {
         if (u == null) {
             return;
         }
-        if (u.preedit.isEmpty() && u.candidates.isEmpty() && u.auxUp.isEmpty() && u.auxDown.isEmpty()) {
-            return;
-        }
         Minecraft mc = Minecraft.getInstance();
         int pad = 3;
         int lineH = 12;
         int auxColor = -5592406;
+        EditBox box = activeBox;
+        int screenW = mc.getWindow().getGuiScaledWidth();
+        int screenH = mc.getWindow().getGuiScaledHeight();
+        int cursorX = 0;
+        int textY = 0;
+        if (box != null) {
+            String value = box.getValue();
+            int cursorPos = Math.min(box.getCursorPosition(), value.length());
+            cursorX = box.getX() + 4 + mc.font.width(value.substring(0, cursorPos));
+            textY = box.getY() + (box.getHeight() - 8) / 2;
+        }
+        boolean hasPreedit = box != null && !u.preedit.isEmpty();
+        int panelX = cursorX;
+        if (hasPreedit) {
+            int pw = mc.font.width(u.preedit);
+            g.fill(cursorX - 1, textY - 1, cursorX + pw + 1, textY + 9, -2142992129);
+            g.text(mc.font, u.preedit, cursorX, textY, -1);
+            g.fill(cursorX, textY + 9, cursorX + pw, textY + 10, -1);
+            panelX = cursorX + pw;
+        }
         List<String> texts = new ArrayList<String>();
         List<Integer> colors = new ArrayList<Integer>();
         List<Integer> candIdx = new ArrayList<Integer>();
         if (!u.auxUp.isEmpty()) {
             texts.add(u.auxUp);
             colors.add(auxColor);
-            candIdx.add(-1);
-        }
-        if (!u.preedit.isEmpty()) {
-            texts.add(u.preedit);
-            colors.add(-1);
             candIdx.add(-1);
         }
         for (int i = 0; i < u.candidates.size(); ++i) {
@@ -204,20 +203,18 @@ public final class FcitxIntegration {
             colors.add(auxColor);
             candIdx.add(-1);
         }
+        if (texts.isEmpty()) {
+            return;
+        }
         int w = 56;
         for (String s : texts) {
             w = Math.max(w, mc.font.width(s) + pad * 2);
         }
-        int h = Math.max(1, texts.size()) * lineH + pad * 2;
-        int screenW = mc.getWindow().getGuiScaledWidth();
-        int screenH = mc.getWindow().getGuiScaledHeight();
-        EditBox box = activeBox;
+        int h = texts.size() * lineH + pad * 2;
         int cx;
         int cy;
         if (box != null) {
-            String value = box.getValue();
-            int cursorPos = Math.min(box.getCursorPosition(), value.length());
-            cx = box.getX() + 4 + mc.font.width(value.substring(0, cursorPos));
+            cx = panelX;
             int below = box.getY() + box.getHeight() + 2;
             cy = below + h + 2 <= screenH ? below : box.getY() - h - 2;
         } else {
