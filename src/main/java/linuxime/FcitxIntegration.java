@@ -177,10 +177,26 @@ public final class FcitxIntegration {
         if (focused instanceof EditBox) {
             return FcitxIntegration.editBox((EditBox)focused);
         }
-        String cls = focused == null ? "(null)" : focused.getClass().getName();
-        if (!cls.equals(lastFocusedClass)) {
-            lastFocusedClass = cls;
-            ImeLog.info("ime focused widget=" + cls + " screen=" + screen.getClass().getName());
+        for (GuiEventListener child : screen.children()) {
+            if (child instanceof EditBox && ((EditBox)child).isFocused()) {
+                return FcitxIntegration.editBox((EditBox)child);
+            }
+        }
+        String screenCls = screen.getClass().getName();
+        if (!lastFocusedClass.equals(screenCls)) {
+            lastFocusedClass = screenCls;
+            StringBuilder sb = new StringBuilder();
+            for (GuiEventListener child : screen.children()) {
+                if (sb.length() > 0) {
+                    sb.append(',');
+                }
+                sb.append(child.getClass().getSimpleName());
+                if (sb.length() > 400) {
+                    sb.append("...");
+                    break;
+                }
+            }
+            ImeLog.info("ime screen=" + screenCls + " focused=" + (focused == null ? "(null)" : focused.getClass().getName()) + " children=[" + sb + "]");
         }
         return null;
     }
