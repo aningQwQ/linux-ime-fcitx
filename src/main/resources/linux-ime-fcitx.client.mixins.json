@@ -5,6 +5,8 @@
     "client": [
         "EditBoxMixin",
         "KeyboardHandlerMixin",
+        "MultiLineEditBoxAccessor",
+        "MultiLineEditBoxMixin",
         "ScreenRenderMixin",
         "SignEditScreenMixin"
     ],

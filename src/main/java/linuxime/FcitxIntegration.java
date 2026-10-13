@@ -16,9 +16,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import linuxime.ImeLog;
 import linuxime.Keysyms;
 import linuxime.fcitx.FcitxClient;
+import linuxime.mixin.MultiLineEditBoxAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.MultiLineEditBox;
+import net.minecraft.client.gui.components.MultilineTextField;
+import net.minecraft.client.gui.components.events.ContainerEventHandler;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -173,14 +177,12 @@ public final class FcitxIntegration {
         if (screen == null) {
             return null;
         }
-        GuiEventListener focused = screen.getFocused();
+        GuiEventListener focused = FcitxIntegration.findFocusedInput(screen);
         if (focused instanceof EditBox) {
             return FcitxIntegration.editBox((EditBox)focused);
         }
-        for (GuiEventListener child : screen.children()) {
-            if (child instanceof EditBox && ((EditBox)child).isFocused()) {
-                return FcitxIntegration.editBox((EditBox)child);
-            }
+        if (focused instanceof MultiLineEditBox) {
+            return FcitxIntegration.multiLineEditBox((MultiLineEditBox)focused);
         }
         String screenCls = screen.getClass().getName();
         if (!lastFocusedClass.equals(screenCls)) {
@@ -196,9 +198,59 @@ public final class FcitxIntegration {
                     break;
                 }
             }
-            ImeLog.info("ime screen=" + screenCls + " focused=" + (focused == null ? "(null)" : focused.getClass().getName()) + " children=[" + sb + "]");
+            GuiEventListener raw = screen.getFocused();
+            ImeLog.info("ime screen=" + screenCls + " focused=" + (raw == null ? "(null)" : raw.getClass().getName()) + " children=[" + sb + "]");
         }
         return null;
+    }
+
+    private static GuiEventListener findFocusedInput(GuiEventListener node) {
+        if ((node instanceof EditBox || node instanceof MultiLineEditBox) && node.isFocused()) {
+            return node;
+        }
+        if (node instanceof ContainerEventHandler ceh) {
+            for (GuiEventListener child : ceh.children()) {
+                GuiEventListener found = FcitxIntegration.findFocusedInput(child);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static TextTarget multiLineEditBox(final MultiLineEditBox box) {
+        final MultilineTextField field = ((MultiLineEditBoxAccessor)box).linuxime$textField();
+        return new TextTarget(){
+
+            public Object id() {
+                return box;
+            }
+
+            public String value() {
+                return field.value();
+            }
+
+            public int cursor() {
+                return field.cursor();
+            }
+
+            public void insert(String text) {
+                field.insertText(text);
+            }
+
+            public int x() {
+                return box.getX();
+            }
+
+            public int y() {
+                return box.getY();
+            }
+
+            public int height() {
+                return box.getHeight();
+            }
+        };
     }
 
     public static boolean onCharTyped() {
