@@ -1,0 +1,13 @@
+{
+    "required": true,
+    "package": "linuxime.mixin",
+    "compatibilityLevel": "JAVA_25",
+    "client": [
+        "EditBoxMixin",
+        "ScreenKeyMixin",
+        "ScreenRenderMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}
