@@ -168,29 +168,17 @@ public final class FcitxIntegration {
         EditBox box = activeBox;
         int screenW = mc.getWindow().getGuiScaledWidth();
         int screenH = mc.getWindow().getGuiScaledHeight();
-        int cursorX = 0;
-        int textY = 0;
-        if (box != null) {
-            String value = box.getValue();
-            int cursorPos = Math.min(box.getCursorPosition(), value.length());
-            cursorX = box.getX() + 4 + mc.font.width(value.substring(0, cursorPos));
-            textY = box.getY() + (box.getHeight() - 8) / 2;
-        }
-        boolean hasPreedit = box != null && !u.preedit.isEmpty();
-        int panelX = cursorX;
-        if (hasPreedit) {
-            int pw = mc.font.width(u.preedit);
-            g.fill(cursorX - 1, textY - 1, cursorX + pw + 1, textY + 9, -2142992129);
-            g.text(mc.font, u.preedit, cursorX, textY, -1);
-            g.fill(cursorX, textY + 9, cursorX + pw, textY + 10, -1);
-            panelX = cursorX + pw;
-        }
         List<String> texts = new ArrayList<String>();
         List<Integer> colors = new ArrayList<Integer>();
         List<Integer> candIdx = new ArrayList<Integer>();
         if (!u.auxUp.isEmpty()) {
             texts.add(u.auxUp);
             colors.add(auxColor);
+            candIdx.add(-1);
+        }
+        if (!u.preedit.isEmpty()) {
+            texts.add(u.preedit);
+            colors.add(-1);
             candIdx.add(-1);
         }
         for (int i = 0; i < u.candidates.size(); ++i) {
@@ -214,7 +202,9 @@ public final class FcitxIntegration {
         int cx;
         int cy;
         if (box != null) {
-            cx = panelX;
+            String value = box.getValue();
+            int cursorPos = Math.min(box.getCursorPosition(), value.length());
+            cx = box.getX() + 4 + mc.font.width(value.substring(0, cursorPos));
             int below = box.getY() + box.getHeight() + 2;
             cy = below + h + 2 <= screenH ? below : box.getY() - h - 2;
         } else {
