@@ -10,8 +10,8 @@
  */
 package linuxime;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
 import linuxime.ImeLog;
@@ -63,22 +63,32 @@ public final class FcitxIntegration {
     }
 
     public static boolean onScreenEsc(KeyEvent event) {
-        if (!(ready && event.isEscape() && composing)) {
+        if (!(ready && event.isEscape() && FcitxIntegration.hasUi())) {
             return false;
         }
         FCITX.processKeyEvent(Keysyms.keysym(event.key()), event.scancode(), Keysyms.xState(event.modifiers()), false, FcitxIntegration.now());
-        composing = false;
-        PENDING_PREEDIT.set(new PreeditUpdate("", 0));
-        if (activeBox != null) {
-            activeBox.preeditUpdated(null);
-        }
+        FcitxIntegration.clearUi();
         ImeLog.info("Esc: \u53d6\u6d88\u7ec4\u8bcd\u5e76\u541e\u6389\u6309\u952e");
         return true;
     }
 
+    private static boolean hasUi() {
+        FcitxClient.UiState u = ui;
+        return composing || u != null && (!u.preedit.isEmpty() || !u.candidates.isEmpty() || !u.auxUp.isEmpty() || !u.auxDown.isEmpty());
+    }
+
+    private static void clearUi() {
+        composing = false;
+        PENDING_PREEDIT.set(new PreeditUpdate("", 0));
+        ui = null;
+        if (activeBox != null) {
+            activeBox.preeditUpdated(null);
+        }
+    }
+
     public static boolean onKeyPressed(EditBox self, KeyEvent e) {
         boolean handled;
-        if (!ready) {
+        if (!ready || e.isEscape()) {
             return false;
         }
         int keyval = Keysyms.keysym(e.key());
@@ -161,48 +171,80 @@ public final class FcitxIntegration {
 
     public static void renderCandidate(GuiGraphicsExtractor g) {
         FcitxClient.UiState u = ui;
-        if (u == null || u.preedit.isEmpty() && u.candidates.isEmpty()) {
+        if (u == null) {
+            return;
+        }
+        if (u.preedit.isEmpty() && u.candidates.isEmpty() && u.auxUp.isEmpty() && u.auxDown.isEmpty()) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        EditBox box = activeBox;
-        if (box == null) {
-            return;
-        }
-        String value = box.getValue();
-        int cursorPos = Math.min(box.getCursorPosition(), value.length());
-        int cx = box.getX() + 4 + mc.font.width(value.substring(0, cursorPos));
-        int cy = box.getY() + box.getHeight() + 2;
-        List<String> cands = u.candidates;
-        List<String> labels = u.labels;
         int pad = 3;
-        Objects.requireNonNull(mc.font);
-        int lineH = 9 + 3;
-        int w = 56;
+        int lineH = 12;
+        int auxColor = -5592406;
+        List<String> texts = new ArrayList<String>();
+        List<Integer> colors = new ArrayList<Integer>();
+        List<Integer> candIdx = new ArrayList<Integer>();
+        if (!u.auxUp.isEmpty()) {
+            texts.add(u.auxUp);
+            colors.add(auxColor);
+            candIdx.add(-1);
+        }
         if (!u.preedit.isEmpty()) {
-            w = Math.max(w, mc.font.width(u.preedit) + pad * 2);
+            texts.add(u.preedit);
+            colors.add(-1);
+            candIdx.add(-1);
         }
-        for (int i = 0; i < cands.size(); ++i) {
-            w = Math.max(w, mc.font.width(FcitxIntegration.candLabel(i, labels) + " " + cands.get(i)) + pad * 2);
+        for (int i = 0; i < u.candidates.size(); ++i) {
+            texts.add(FcitxIntegration.candLabel(i, u.labels) + " " + u.candidates.get(i));
+            colors.add(i == u.cursor ? -1 : -2236963);
+            candIdx.add(i);
         }
-        int rows = (u.preedit.isEmpty() ? 0 : 1) + cands.size();
-        int h = Math.max(1, rows) * lineH + pad * 2;
+        if (!u.auxDown.isEmpty()) {
+            texts.add(u.auxDown);
+            colors.add(auxColor);
+            candIdx.add(-1);
+        }
+        int w = 56;
+        for (String s : texts) {
+            w = Math.max(w, mc.font.width(s) + pad * 2);
+        }
+        int h = Math.max(1, texts.size()) * lineH + pad * 2;
+        int screenW = mc.getWindow().getGuiScaledWidth();
+        int screenH = mc.getWindow().getGuiScaledHeight();
+        EditBox box = activeBox;
+        int cx;
+        int cy;
+        if (box != null) {
+            String value = box.getValue();
+            int cursorPos = Math.min(box.getCursorPosition(), value.length());
+            cx = box.getX() + 4 + mc.font.width(value.substring(0, cursorPos));
+            int below = box.getY() + box.getHeight() + 2;
+            cy = below + h + 2 <= screenH ? below : box.getY() - h - 2;
+        } else {
+            cx = (screenW - w) / 2;
+            cy = screenH - h - 40;
+        }
+        if (cx + w + 2 > screenW) {
+            cx = screenW - w - 2;
+        }
+        if (cx < 2) {
+            cx = 2;
+        }
+        if (cy + h + 2 > screenH) {
+            cy = screenH - h - 2;
+        }
+        if (cy < 2) {
+            cy = 2;
+        }
         g.fill(cx - 1, cy - 1, cx + w + 1, cy + h + 1, -16777216);
         g.fill(cx, cy, cx + w, cy + h, -266330072);
-        int row = 0;
-        if (!u.preedit.isEmpty()) {
-            g.text(mc.font, u.preedit, cx + pad, cy + pad + row * lineH, -1);
-            ++row;
-        }
-        for (int i = 0; i < cands.size(); ++i) {
-            boolean sel;
-            int iy = cy + pad + row * lineH;
-            boolean bl = sel = i == u.cursor;
-            if (sel) {
+        for (int r = 0; r < texts.size(); ++r) {
+            int iy = cy + pad + r * lineH;
+            int ci = candIdx.get(r);
+            if (ci >= 0 && ci == u.cursor) {
                 g.fill(cx + 1, iy - 2, cx + w - 1, iy + lineH - 2, -2142992129);
             }
-            g.text(mc.font, FcitxIntegration.candLabel(i, labels) + " " + cands.get(i), cx + pad, iy - 1, sel ? -1 : -2236963);
-            ++row;
+            g.text(mc.font, texts.get(r), cx + pad, iy - 1, colors.get(r));
         }
     }
 

@@ -87,11 +87,13 @@ public final class FcitxClient {
             case "UpdateClientSideUI": {
                 String text = FcitxClient.joinSI(msg.args.isEmpty() ? null : msg.args.get(0));
                 int pc = msg.args.size() > 1 && msg.args.get(1) instanceof Integer ? ((Integer)msg.args.get(1)).intValue() : text.length();
+                String auxUp = FcitxClient.joinSI(msg.args.size() > 2 ? msg.args.get(2) : null);
+                String auxDown = FcitxClient.joinSI(msg.args.size() > 3 ? msg.args.get(3) : null);
                 Object candidateArray = msg.args.size() > 4 ? msg.args.get(4) : null;
                 List<String> labels = FcitxClient.joinSS(candidateArray, 0);
                 List<String> cands = FcitxClient.joinSS(candidateArray, 1);
                 int cur = msg.args.size() > 5 && msg.args.get(5) instanceof Integer ? (Integer)msg.args.get(5) : 0;
-                this.onUi.accept(new UiState(text, pc, cands, labels, cur));
+                this.onUi.accept(new UiState(text, pc, cands, labels, cur, auxUp, auxDown));
                 break;
             }
             case "NotifyFocusOut": {
@@ -209,13 +211,17 @@ public final class FcitxClient {
         public final List<String> candidates;
         public final List<String> labels;
         public final int cursor;
+        public final String auxUp;
+        public final String auxDown;
 
-        public UiState(String preedit, int preeditCursor, List<String> candidates, List<String> labels, int cursor) {
+        public UiState(String preedit, int preeditCursor, List<String> candidates, List<String> labels, int cursor, String auxUp, String auxDown) {
             this.preedit = preedit;
             this.preeditCursor = preeditCursor;
             this.candidates = candidates;
             this.labels = labels;
             this.cursor = cursor;
+            this.auxUp = auxUp;
+            this.auxDown = auxDown;
         }
     }
 }
