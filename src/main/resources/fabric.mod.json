@@ -1,7 +1,7 @@
 {
     "schemaVersion": 1,
     "id": "linux-ime-fcitx",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "name": "Linux IME Fcitx",
     "description": "Force-enable the game's input method (IME) path on Linux so Chinese/Japanese/Korean input works in text boxes.",
     "authors": [],
