@@ -6,7 +6,6 @@
  *  net.minecraft.client.gui.GuiGraphicsExtractor
  *  net.minecraft.client.gui.components.EditBox
  *  net.minecraft.client.input.KeyEvent
- *  net.minecraft.client.input.PreeditEvent
  */
 package linuxime;
 
@@ -26,8 +25,8 @@ public final class FcitxIntegration {
     private static final FcitxClient FCITX = new FcitxClient();
     private static final ConcurrentLinkedQueue<String> COMMITS = new ConcurrentLinkedQueue();
     private static final AtomicReference<PreeditUpdate> PENDING_PREEDIT = new AtomicReference();
-    private static EditBox activeBox;
-    private static EditBox lastFocusedBox;
+    private static TextTarget active;
+    private static TextTarget last;
     private static boolean ready;
     private static volatile boolean swallowChar;
     private static volatile boolean composing;
@@ -35,6 +34,55 @@ public final class FcitxIntegration {
     private static volatile String clientPreedit = "";
 
     private FcitxIntegration() {
+    }
+
+    public interface TextTarget {
+        Object id();
+
+        String value();
+
+        int cursor();
+
+        void insert(String text);
+
+        int x();
+
+        int y();
+
+        int height();
+    }
+
+    public static TextTarget editBox(final EditBox box) {
+        return new TextTarget(){
+
+            public Object id() {
+                return box;
+            }
+
+            public String value() {
+                return box.getValue();
+            }
+
+            public int cursor() {
+                return box.getCursorPosition();
+            }
+
+            public void insert(String text) {
+                box.insertText(text);
+            }
+
+            public int x() {
+                return box.getX();
+            }
+
+            public int y() {
+                return box.getY();
+            }
+
+            public int height() {
+                return box.getHeight();
+            }
+        };
     }
 
     public static void init() {
@@ -86,7 +134,7 @@ public final class FcitxIntegration {
         ui = null;
     }
 
-    public static boolean onKeyPressed(EditBox self, KeyEvent e) {
+    public static boolean onKeyPressed(TextTarget target, KeyEvent e) {
         boolean handled;
         if (!ready || e.isEscape()) {
             return false;
@@ -95,7 +143,7 @@ public final class FcitxIntegration {
         if (keyval == 0) {
             return false;
         }
-        FcitxIntegration.activate(self);
+        FcitxIntegration.activate(target);
         int keycode = e.scancode();
         int state = Keysyms.xState(e.modifiers());
         swallowChar = handled = FCITX.processKeyEvent(keyval, keycode, state, false, FcitxIntegration.now());
@@ -113,13 +161,13 @@ public final class FcitxIntegration {
         return false;
     }
 
-    private static void activate(EditBox self) {
-        if (self != lastFocusedBox) {
+    private static void activate(TextTarget target) {
+        if (last == null || target.id() != last.id()) {
             FCITX.focusIn();
-            FcitxIntegration.updateCursorRect(self);
-            lastFocusedBox = self;
+            FcitxIntegration.updateCursorRect(target);
+            last = target;
         }
-        activeBox = self;
+        active = target;
     }
 
     public static void onTick() {
@@ -129,9 +177,9 @@ public final class FcitxIntegration {
         }
         boolean changed = false;
         while ((c = COMMITS.poll()) != null) {
-            if (activeBox == null) continue;
+            if (active == null) continue;
             ImeLog.info("commit: \"" + c + "\"");
-            activeBox.insertText(c);
+            active.insert(c);
             changed = true;
         }
         PreeditUpdate p = PENDING_PREEDIT.getAndSet(null);
@@ -139,24 +187,24 @@ public final class FcitxIntegration {
             changed = true;
         }
         if (changed) {
-            FcitxIntegration.updateCursorRect(activeBox);
+            FcitxIntegration.updateCursorRect(active);
         }
     }
 
-    private static void updateCursorRect(EditBox box) {
-        if (box == null) {
+    private static void updateCursorRect(TextTarget target) {
+        if (target == null) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
         double scale = mc.getWindow().getGuiScale();
-        String value = box.getValue();
-        int cursor = Math.min(box.getCursorPosition(), value.length());
+        String value = target.value();
+        int cursor = Math.min(target.cursor(), value.length());
         String prefix = value.substring(0, cursor);
-        double cursorX = box.getX() + 4 + mc.font.width(prefix);
+        double cursorX = target.x() + 4 + mc.font.width(prefix);
         int x = (int)Math.round(cursorX * scale);
-        int y = (int)Math.round((double)box.getY() * scale);
+        int y = (int)Math.round((double)target.y() * scale);
         int w = Math.max(2, (int)Math.round(2.0 * scale));
-        int h = (int)Math.round((double)box.getHeight() * scale);
+        int h = (int)Math.round((double)target.height() * scale);
         FCITX.setCursorRect(x, y, w, h);
     }
 
@@ -175,7 +223,7 @@ public final class FcitxIntegration {
         int pad = 3;
         int lineH = 12;
         int auxColor = -5592406;
-        EditBox box = activeBox;
+        TextTarget target = active;
         int screenW = mc.getWindow().getGuiScaledWidth();
         int screenH = mc.getWindow().getGuiScaledHeight();
         List<String> texts = new ArrayList<String>();
@@ -211,12 +259,12 @@ public final class FcitxIntegration {
         int h = texts.size() * lineH + pad * 2;
         int cx;
         int cy;
-        if (box != null) {
-            String value = box.getValue();
-            int cursorPos = Math.min(box.getCursorPosition(), value.length());
-            cx = box.getX() + 4 + mc.font.width(value.substring(0, cursorPos));
-            int below = box.getY() + box.getHeight() + 2;
-            cy = below + h + 2 <= screenH ? below : box.getY() - h - 2;
+        if (target != null) {
+            String value = target.value();
+            int cursorPos = Math.min(target.cursor(), value.length());
+            cx = target.x() + 4 + mc.font.width(value.substring(0, cursorPos));
+            int below = target.y() + target.height() + 2;
+            cy = below + h + 2 <= screenH ? below : target.y() - h - 2;
         } else {
             cx = (screenW - w) / 2;
             cy = screenH - h - 40;
@@ -263,4 +311,3 @@ public final class FcitxIntegration {
         }
     }
 }
-

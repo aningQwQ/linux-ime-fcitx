@@ -26,7 +26,7 @@ public abstract class EditBoxMixin {
     @Inject(method={"keyPressed"}, at={@At(value="HEAD")}, cancellable=true)
     private void linuxime$forwardToIme(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         EditBox self = (EditBox)(Object)this;
-        if (FcitxIntegration.onKeyPressed(self, event)) {
+        if (FcitxIntegration.onKeyPressed(FcitxIntegration.editBox(self), event)) {
             cir.setReturnValue(true);
         }
     }
